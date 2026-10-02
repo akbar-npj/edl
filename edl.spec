@@ -1,6 +1,6 @@
 Name:           edl
 Version:        3.62
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Qualcomm Sahara / Firehose exploitation and flashing tool
 
 License:        GPL-3.0-or-later
@@ -105,7 +105,7 @@ install -D -p -m 0755 ubidump %{buildroot}%{_bindir}/ubidump
 install -D -p -m 0755 qc_nand_extract.py %{buildroot}%{_bindir}/qc_nand_extract.py
 
 # Install udev rules and kernel module blacklist
-install -D -p -m 0644 Drivers/51-edl.rules %{buildroot}%{_udevrulesdir}/51-edl.rules
+install -D -p -m 0644 Drivers/51-edl.rules %{buildroot}%{_udevrulesdir}/51-edlclient.rules
 install -D -p -m 0644 Drivers/50-android.rules %{buildroot}%{_udevrulesdir}/50-android-edl.rules
 install -D -p -m 0644 Drivers/blacklist-qcserial.conf %{buildroot}%{_modprobedir}/blacklist-qcserial.conf
 
@@ -114,7 +114,7 @@ test -x %{buildroot}%{_bindir}/edl
 test -x %{buildroot}%{_bindir}/edl.py
 test -x %{buildroot}%{_bindir}/qc_diag
 test -x %{buildroot}%{_bindir}/ubidump
-test -f %{buildroot}%{_udevrulesdir}/51-edl.rules
+test -f %{buildroot}%{_udevrulesdir}/51-edlclient.rules
 test -f %{buildroot}%{_modprobedir}/blacklist-qcserial.conf
 PYTHONPATH=%{buildroot}%{python3_sitelib} %{python3} -c "import edlclient; print('edlclient import test passed')"
 
@@ -140,10 +140,13 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{python3} -c "import edlclient; print
 %{python3_sitelib}/edlclient
 %{python3_sitelib}/edlclient-%{version}.dist-info
 %{python3_sitelib}/Loaders
-%{_udevrulesdir}/51-edl.rules
+%{_udevrulesdir}/51-edlclient.rules
 %{_udevrulesdir}/50-android-edl.rules
 %{_modprobedir}/blacklist-qcserial.conf
 
 %changelog
+* Fri Oct 02 2026 akbar_npj <akbar.npj@protonmail.com> - 3.62-2
+- Rename udev rule to 51-edlclient.rules to resolve file conflict with mtkclient
+
 * Fri Oct 02 2026 akbar_npj <akbar.npj@protonmail.com> - 3.62-1
 - Initial RPM package for Fedora Asahi Remix

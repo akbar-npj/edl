@@ -172,8 +172,9 @@ rpmbuild --define "_topdir ${RPMBUILD_DIR}" -ba "${RPMBUILD_DIR}/SPECS/${PKG_NAM
 log_success "RPM compilation completed successfully!"
 
 # 8. Locate generated packages
-BINARY_RPM=$(find "${RPMBUILD_DIR}/RPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-*.rpm" ! -name "*.src.rpm" | head -n 1)
-SOURCE_RPM=$(find "${RPMBUILD_DIR}/SRPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-*.src.rpm" | head -n 1)
+PKG_RELEASE=$(grep -E '^Release:' "$SPEC_FILE" | awk '{print $2}' | sed 's/%{?dist}//')
+BINARY_RPM=$(find "${RPMBUILD_DIR}/RPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-${PKG_RELEASE}*.rpm" ! -name "*.src.rpm" | head -n 1)
+SOURCE_RPM=$(find "${RPMBUILD_DIR}/SRPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-${PKG_RELEASE}*.src.rpm" | head -n 1)
 
 if [[ -z "$BINARY_RPM" || ! -f "$BINARY_RPM" ]]; then
     log_error "Binary RPM was not found after compilation."
@@ -211,7 +212,7 @@ if [[ "$DO_TEST" == true ]]; then
     # Verify key executables and rules are present
     log_info "Checking key packaged files..."
     RPM_FILE_LIST=$(rpm -qlp "$BINARY_RPM")
-    for req_file in "/usr/bin/edl" "/usr/bin/edl.py" "/usr/bin/qc_diag" "/usr/lib/udev/rules.d/51-edl.rules" "/usr/lib/modprobe.d/blacklist-qcserial.conf"; do
+    for req_file in "/usr/bin/edl" "/usr/bin/edl.py" "/usr/bin/qc_diag" "/usr/lib/udev/rules.d/51-edlclient.rules" "/usr/lib/modprobe.d/blacklist-qcserial.conf"; do
         if echo "$RPM_FILE_LIST" | grep -F -x "$req_file" >/dev/null; then
             echo -e "  ${GREEN}✓${NC} Found $req_file"
         else

@@ -59,7 +59,7 @@ The RPM package is built with `BuildArch: noarch`:
 - System integration is handled automatically:
   - Standard commands in `/usr/bin/` (`edl`, `qc_diag`, `sierrakeygen`, `boottodwnload`, `enableadb`, `fhloaderparse`, `beagle_to_loader`, `ubidump`, `qc_nand_extract.py`).
   - Backward-compatible symlinks (`edl.py`, `qc_diag.py`, `sierrakeygen.py`, etc.).
-  - Udev rules in `/usr/lib/udev/rules.d/51-edl.rules` for non-root USB device access (`uaccess`, `0666`).
+  - Udev rules in `/usr/lib/udev/rules.d/51-edlclient.rules` for non-root USB device access (`uaccess`, `0666`).
   - Kernel module blacklist in `/usr/lib/modprobe.d/blacklist-qcserial.conf` to prevent the Linux kernel `qcserial` driver from monopolizing the raw USB endpoint.
 
 ---
@@ -379,7 +379,7 @@ ubidump --help
 **Resolution:**
 - Check that udev rules are installed and active:
   ```bash
-  ls -l /usr/lib/udev/rules.d/51-edl.rules
+  ls -l /usr/lib/udev/rules.d/51-edlclient.rules
   sudo udevadm control --reload-rules && sudo udevadm trigger
   ```
 - Confirm your user belongs to `dialout` (and `plugdev` if on Debian/Ubuntu):
