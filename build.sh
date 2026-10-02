@@ -247,5 +247,9 @@ else
     log_info "To install the package manually, run:"
     echo -e "  ${BOLD}sudo dnf install ${BINARY_RPM}${NC}"
     echo -e "  ${BOLD}sudo udevadm control --reload-rules && sudo udevadm trigger${NC}"
-    echo -e "  ${BOLD}sudo usermod -aG dialout,plugdev \$USER${NC}"
+    if getent group plugdev &>/dev/null; then
+        echo -e "  ${BOLD}sudo usermod -aG dialout,plugdev \$USER${NC}"
+    else
+        echo -e "  ${BOLD}sudo usermod -aG dialout \$USER${NC}"
+    fi
 fi

@@ -257,8 +257,12 @@ sudo rpm -Uvh ~/rpmbuild/RPMS/noarch/edl-3.62-1.fc*.noarch.rpm
    sudo udevadm trigger
    ```
 
-2. Add your user account to the `dialout` and `plugdev` groups to allow non-root USB access:
+2. Add your user account to the `dialout` group (and `plugdev` on Debian/Ubuntu):
    ```bash
+   # Fedora / RHEL / Fedora Asahi Remix (raw USB access is handled dynamically by systemd uaccess):
+   sudo usermod -aG dialout $USER
+
+   # Debian / Ubuntu (where plugdev is used for hotplugged device access):
    sudo usermod -aG dialout,plugdev $USER
    ```
 
@@ -378,7 +382,7 @@ ubidump --help
   ls -l /usr/lib/udev/rules.d/51-edl.rules
   sudo udevadm control --reload-rules && sudo udevadm trigger
   ```
-- Confirm your user belongs to `dialout` and `plugdev`:
+- Confirm your user belongs to `dialout` (and `plugdev` if on Debian/Ubuntu):
   ```bash
   groups $USER
   ```
