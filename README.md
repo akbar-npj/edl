@@ -82,6 +82,9 @@ pip3 install -r requirements.txt
 ```
 
 ### Linux (Debian/Ubuntu/Mint/etc): 
+
+> **RPM Packaging**: For compiling and installing native RPM packages on Fedora, Fedora Asahi Remix, and RHEL, refer to the [Compilation & Packaging Guide (BUILD.md)](BUILD.md).
+
 ```bash
 # Debian/Ubuntu/Mint/etc
 sudo apt install adb fastboot python3-dev python3-pip liblzma-dev git
