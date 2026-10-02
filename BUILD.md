@@ -140,7 +140,33 @@ sudo pacman -S --needed \
 
 ## RPM Package Compilation Guide (Fedora / RHEL)
 
-### 1. Initialize RPM Build Environment
+### Quick Start: Automated Compilation (`build.sh`)
+
+An automated build script [`build.sh`](build.sh) is provided in the repository to orchestrate the entire compilation and testing pipeline:
+
+```bash
+# 1. Run automated build and verification tests
+./build.sh
+
+# 2. Or build, verify, and prompt to install directly
+./build.sh --install
+```
+
+`build.sh` automatically performs:
+- Dependency validation (`rpmbuild`, `python3`, `git`, `tar`).
+- Submodule check and clone (`Loaders`).
+- Source archive generation with symlink protection.
+- Spec staging and `rpmbuild -ba` compilation.
+- Automated package verification (metadata query, capability checks, required binary checks).
+- `dnf` dry-run transaction test to verify all dependencies are resolvable from system repositories.
+
+---
+
+### Manual Compilation Walkthrough
+
+If you prefer building manually without `build.sh`:
+
+#### 1. Initialize RPM Build Environment
 
 Create the standard `rpmbuild` directory tree in your home directory:
 
@@ -148,7 +174,7 @@ Create the standard `rpmbuild` directory tree in your home directory:
 mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 ```
 
-### 2. Clone Repository & Initialize Submodules
+#### 2. Clone Repository & Initialize Submodules
 
 Ensure you clone the repository and initialize the `Loaders` submodule:
 
@@ -164,9 +190,9 @@ Verify that the `Loaders` directory contains Qualcomm programmer binaries:
 ls -d Loaders/*/ | head -n 10
 ```
 
-### 3. Generate Source Tarball
+#### 3. Generate Source Tarball
 
-Package the source tree into `~/rpmbuild/SOURCES/edl-3.62.tar.gz`. Exclude VCS metadata and build artifacts:
+Package the source tree into `~/rpmbuild/SOURCES/edl-3.62.tar.gz`. Use the `S` flag in `--transform` to prevent modifying symbolic link targets:
 
 ```bash
 tar --exclude-vcs \
@@ -177,7 +203,9 @@ tar --exclude-vcs \
     --exclude="edlclient.egg-info" \
     --exclude="build" \
     --exclude="dist" \
-    --transform 's,^\.,edl-3.62,' \
+    --exclude="*.whl" \
+    --transform "s,^\./,edl-3.62/,S" \
+    --transform "s,^\.$,edl-3.62,S" \
     -czf ~/rpmbuild/SOURCES/edl-3.62.tar.gz .
 ```
 
