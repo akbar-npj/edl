@@ -118,7 +118,8 @@ fi
 
 PKG_NAME=$(grep -E '^Name:' "$SPEC_FILE" | awk '{print $2}')
 PKG_VERSION=$(grep -E '^Version:' "$SPEC_FILE" | awk '{print $2}')
-log_info "Package: ${PKG_NAME} (Version: ${PKG_VERSION})"
+PKG_RELEASE=$(grep -E '^Release:' "$SPEC_FILE" | awk '{print $2}' | sed 's/%{?dist}//')
+log_info "Package: ${PKG_NAME} (Version: ${PKG_VERSION}, Release: ${PKG_RELEASE})"
 
 # 3. Check and update git submodules (Loaders)
 log_info "Verifying Loaders submodule..."
@@ -171,10 +172,16 @@ log_info "Executing rpmbuild (building binary and source packages)..."
 rpmbuild --define "_topdir ${RPMBUILD_DIR}" -ba "${RPMBUILD_DIR}/SPECS/${PKG_NAME}.spec"
 log_success "RPM compilation completed successfully!"
 
-# 8. Locate generated packages
-PKG_RELEASE=$(grep -E '^Release:' "$SPEC_FILE" | awk '{print $2}' | sed 's/%{?dist}//')
-BINARY_RPM=$(find "${RPMBUILD_DIR}/RPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-${PKG_RELEASE}*.rpm" ! -name "*.src.rpm" | head -n 1)
-SOURCE_RPM=$(find "${RPMBUILD_DIR}/SRPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-${PKG_RELEASE}*.src.rpm" | head -n 1)
+# 8. Locate generated packages (selected by newest timestamp)
+BINARY_RPM=$(find "${RPMBUILD_DIR}/RPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-*.rpm" ! -name "*.src.rpm" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
+if [[ -z "$BINARY_RPM" ]]; then
+    BINARY_RPM=$(find "${RPMBUILD_DIR}/RPMS" -type f -name "${PKG_NAME}*.rpm" ! -name "*.src.rpm" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
+fi
+
+SOURCE_RPM=$(find "${RPMBUILD_DIR}/SRPMS" -type f -name "${PKG_NAME}-${PKG_VERSION}-*.src.rpm" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
+if [[ -z "$SOURCE_RPM" ]]; then
+    SOURCE_RPM=$(find "${RPMBUILD_DIR}/SRPMS" -type f -name "${PKG_NAME}*.src.rpm" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
+fi
 
 if [[ -z "$BINARY_RPM" || ! -f "$BINARY_RPM" ]]; then
     log_error "Binary RPM was not found after compilation."
@@ -225,6 +232,9 @@ if [[ "$DO_TEST" == true ]]; then
     if command -v dnf &>/dev/null; then
         log_info "Testing dnf dependency resolution (dry-run)..."
         DNF_OUT=$(dnf --assumeno install "$BINARY_RPM" 2>&1 || true)
+        if echo "$DNF_OUT" | grep -qi "already installed"; then
+            DNF_OUT=$(dnf --assumeno reinstall "$BINARY_RPM" 2>&1 || true)
+        fi
         if echo "$DNF_OUT" | grep -q "Transaction Summary"; then
             log_success "All package dependencies successfully resolved by dnf!"
         else

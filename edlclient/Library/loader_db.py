@@ -37,39 +37,53 @@ class loader_utils(metaclass=LogBase):
         self.loaderdb = {}
 
     def init_loader_db(self):
-        for (dirpath, dirnames, filenames) in os.walk(os.path.join(parent_dir, "..", "Loaders")):
-            for filename in filenames:
-                fn = os.path.join(dirpath, filename)
-                found = False
-                for ext in [".bin", ".mbn", ".elf"]:
-                    if ext in filename[-4:]:
-                        found = True
-                        break
-                if not found:
-                    continue
-                try:
-                    hwid = filename.split("_")[0].lower()
-                    msmid = hwid[:8]
+        candidate_dirs = [
+            os.path.join(parent_dir, "..", "Loaders"),
+            os.path.join(parent_dir, "Loaders"),
+            os.path.expanduser("~/.local/share/edl/Loaders"),
+            os.path.expanduser("~/.edl/Loaders"),
+            "/usr/share/edl/Loaders",
+            os.path.join(sys.prefix, "share", "edl", "Loaders"),
+        ]
+        visited_dirs = set()
+        for cdir in candidate_dirs:
+            real_cdir = os.path.realpath(cdir)
+            if real_cdir in visited_dirs or not os.path.isdir(real_cdir):
+                continue
+            visited_dirs.add(real_cdir)
+            for (dirpath, dirnames, filenames) in os.walk(real_cdir):
+                for filename in filenames:
+                    fn = os.path.join(dirpath, filename)
+                    found = False
+                    for ext in [".bin", ".mbn", ".elf"]:
+                        if ext in filename[-4:]:
+                            found = True
+                            break
+                    if not found:
+                        continue
                     try:
-                        int(msmid, 16)
-                    except:
+                        hwid = filename.split("_")[0].lower()
+                        msmid = hwid[:8]
+                        try:
+                            int(msmid, 16)
+                        except:
+                            continue
+                        devid = hwid[8:]
+                        if devid == '':
+                            continue
+                        if len(filename.split("_")) < 2:
+                            continue
+                        pkhash = filename.split("_")[1].lower()
+                        for msmid in self.convertmsmid(msmid):
+                            mhwid = msmid + devid
+                            mhwid = mhwid.lower()
+                            if mhwid not in self.loaderdb:
+                                self.loaderdb[mhwid] = {}
+                            if pkhash not in self.loaderdb[mhwid]:
+                                self.loaderdb[mhwid][pkhash] = fn
+                    except Exception as e:  # pylint: disable=broad-except
+                        self.debug(f"Filename:{filename} => {str(e)}")
                         continue
-                    devid = hwid[8:]
-                    if devid == '':
-                        continue
-                    if len(filename.split("_")) < 2:
-                        continue
-                    pkhash = filename.split("_")[1].lower()
-                    for msmid in self.convertmsmid(msmid):
-                        mhwid = msmid + devid
-                        mhwid = mhwid.lower()
-                        if mhwid not in self.loaderdb:
-                            self.loaderdb[mhwid] = {}
-                        if pkhash not in self.loaderdb[mhwid]:
-                            self.loaderdb[mhwid][pkhash] = fn
-                except Exception as e:  # pylint: disable=broad-except
-                    self.debug(f"Filename:{filename} => {str(e)}")
-                    continue
         return self.loaderdb
 
     def convertmsmid(self, msmid):

@@ -325,7 +325,8 @@ class usb_class(DeviceClass):
             try:
                 if reset:
                     self.device.reset()
-                if not self.device.is_kernel_driver_active(self.interface):
+                itf_num = self.interface.bInterfaceNumber if hasattr(self.interface, 'bInterfaceNumber') else 0
+                if not self.device.is_kernel_driver_active(itf_num):
                     # self.device.attach_kernel_driver(self.interface) #Do NOT uncomment
                     self.device.attach_kernel_driver(0)
             except Exception as err:
@@ -377,45 +378,42 @@ class usb_class(DeviceClass):
         return True
 
     def usbread(self, resplen=None, timeout=0):
-        if timeout == 0:
-            timeout = 1
-        if resplen is None:
+        if timeout == -1 or timeout == 0:
+            timeout = self.timeout
+        elif timeout is not None and 0 < timeout < 50:
+            # Caller passed timeout in seconds (e.g. 1, 2, 5, 10)
+            timeout = int(timeout * 1000)
+        if resplen is None or resplen <= 0:
             resplen = self.maxsize
-        if resplen <= 0:
-            self.info("Warning !")
         res = bytearray()
         loglevel = self.loglevel
-        buffer = self.buffer[:resplen]
         epr = self.EP_IN.read
         extend = res.extend
+        cur_timeout = int(timeout) if timeout is not None else None
         while len(res) < resplen:
+            bytes_to_read = min(1048576, resplen - len(res))
             try:
-                resplen = epr(buffer, timeout)
-                extend(buffer[:resplen])
-                if resplen == self.EP_IN.wMaxPacketSize:
+                data = epr(bytes_to_read, cur_timeout)
+                extend(data)
+                if len(data) == 0 or len(data) % self.EP_IN.wMaxPacketSize != 0:
                     break
             except usb.core.USBError as e:
                 error = str(e.strerror)
                 if "timed out" in error:
-                    if timeout is None:
-                        return b""
                     self.debug("Timed out")
-                    if timeout == 10:
-                        return b""
-                    timeout += 1
-                    pass
+                    break
                 elif "Overflow" in error:
                     self.error("USB Overflow")
-                    return b""
+                    break
                 else:
-                    self.info(repr(e))
-                    return b""
+                    self.debug(repr(e))
+                    break
 
         if loglevel == logging.DEBUG:
-            self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(resplen))
+            self.debug(inspect.currentframe().f_back.f_code.co_name + ":" + hex(len(res)))
             if self.loglevel == logging.DEBUG:
-                self.verify_data(res[:resplen], "RX:")
-        return res[:resplen]
+                self.verify_data(res, "RX:")
+        return bytes(res)
 
     def ctrl_transfer(self, bmRequestType, bRequest, wValue, wIndex, data_or_wLength):
         ret = self.device.ctrl_transfer(bmRequestType=bmRequestType, bRequest=bRequest, wValue=wValue, wIndex=wIndex,

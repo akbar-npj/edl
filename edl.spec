@@ -1,6 +1,6 @@
 Name:           edl
 Version:        3.62
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Qualcomm Sahara / Firehose exploitation and flashing tool
 
 License:        GPL-3.0-or-later
@@ -145,6 +145,12 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{python3} -c "import edlclient; print
 %{_modprobedir}/blacklist-qcserial.conf
 
 %changelog
+* Sun Oct 04 2026 akbar_npj <akbar.npj@protonmail.com> - 3.62-3
+- Fix USB timeout loop and packet reading in usblib
+- Fix Sahara handshake timing and error handling
+- Add ModemManager ignore flags to udev rules
+- Expand loader database search paths for multi-environment support
+
 * Fri Oct 02 2026 akbar_npj <akbar.npj@protonmail.com> - 3.62-2
 - Rename udev rule to 51-edlclient.rules to resolve file conflict with mtkclient
 

@@ -237,7 +237,11 @@ class main(metaclass=LogBase):
                     continue
                 if "mode" in resp:
                     mode = resp["mode"]
-                    self.info(f"Mode detected: {mode}")
+                    if mode == "error":
+                        self.error("Device detected, but failed to establish Sahara handshake (no response or device locked up).")
+                        self.info("Please physically unplug the USB cable, make sure the device is fully powered off, and reconnect in EDL mode.")
+                    else:
+                        self.info(f"Mode detected: {mode}")
                     return resp
         return {"mode": "error"}
 
@@ -347,22 +351,29 @@ class main(metaclass=LogBase):
                                         return self.exit()
                     else:
                         sahara_info = self.sahara.cmd_info(version=version)
-                        if sahara_info is not None:
+                        if sahara_info:
                             resp = self.sahara.connect()
                             mode = resp["mode"]
                             if "data" in resp:
                                 data = resp["data"]
                             if mode == "sahara":
                                 mode = self.sahara.upload_loader(version=version)
+                                if not mode or mode == "error":
+                                    self.error("No suitable loader found or loader upload failed.")
+                                    self.info("Please specify an EDL loader using --loader=<path_to_loader.elf>")
+                                    return self.exit(1)
                         else:
                             print("Error on sahara handshake, resetting.")
                             self.sahara.cmd_reset()
                             return self.exit(1)
+            else:
+                self.error(f"Sahara handshake failed (unexpected response command: {hex(cmd) if isinstance(cmd, int) else cmd}).")
+                self.info("Please power cycle / reboot the device into EDL mode and reconnect.")
+                return self.exit(1)
         else:
             if self.__logger.level != logging.DEBUG:
                 self.__logger.setLevel(logging.ERROR)
         if mode == "error":
-            print("Connection detected, quiting.")
             return self.exit(1)
         elif mode == "firehose":
             if "enprg" in self.sahara.programmer.lower():
@@ -377,7 +388,7 @@ class main(metaclass=LogBase):
                 else:
                     print("No suitable loader found :(")
                     return self.exit()
-        if mode != "firehose":
+        if mode in ["nandprg", "enandprg", "load_nandprg", "load_enandprg"]:
             sc = streaming_client(self.args, self.cdc, self.sahara, self.__logger.level, print)
             cmd = self.parse_cmd(self.args)
             options = self.parse_option(self.args)
@@ -386,7 +397,7 @@ class main(metaclass=LogBase):
             else:
                 options["<mode>"] = 0
             sc.handle_streaming(cmd, options)
-        else:
+        elif mode == "firehose":
             self.cdc.timeout = None
             cmd = self.parse_cmd(self.args)
             if cmd == 'provision':
@@ -403,6 +414,10 @@ class main(metaclass=LogBase):
                         return self.exit(1)
                 else:
                     return self.exit(1)
+        else:
+            self.error("Device is not in Firehose mode (no programmer loaded).")
+            self.info("Commands like 'printgpt' require an EDL loader. Please run with --loader=<loader.elf>.")
+            return self.exit(1)
 
 
 def run():

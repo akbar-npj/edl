@@ -104,8 +104,7 @@ class sahara(metaclass=LogBase):
     def cmd_hello(self, mode, version_min=1, max_cmd_len=0, version=2):  # CMD 0x1, RSP 0x2
         cmd = cmd_t.SAHARA_HELLO_RSP
         length = 0x30
-        #version = SAHARA_VERSION
-        responsedata = pack("<IIIIIIIIIIII", cmd, length, version, version_min, max_cmd_len, mode, 1, 2, 3, 4, 5, 6)
+        responsedata = pack("<IIIIIIIIIIII", cmd, length, version, version_min, max_cmd_len, mode, 0, 0, 0, 0, 0, 0)
         try:
             self.cdc.write(responsedata)
             return True
@@ -115,7 +114,7 @@ class sahara(metaclass=LogBase):
 
     def connect(self):
         try:
-            v = self.cdc.read(length=0xC * 0x4, timeout=1)
+            v = self.cdc.read(length=0xC * 0x4, timeout=2)
             if len(v) > 1:
                 if v[0] == 0x01:
                     pkt = self.ch.pkt_cmd_hdr(v)
@@ -127,7 +126,7 @@ class sahara(metaclass=LogBase):
                         return {"mode": "sahara", "cmd": cmd_t.SAHARA_HELLO_REQ, "data": rsp}
                     elif pkt.cmd == cmd_t.SAHARA_END_TRANSFER:
                         rsp = self.ch.pkt_image_end(v)
-                        return {"mode": "sahara", "cmd": cmd_t.SAHARA_END_TRANSFER, "data": rsp}
+                        return {"mode": "error", "cmd": cmd_t.SAHARA_END_TRANSFER, "data": rsp}
                 elif b"<?xml" in v:
                     return {"mode": "firehose"}
                 elif v[0] == 0x7E:
@@ -135,7 +134,7 @@ class sahara(metaclass=LogBase):
             else:
                 data = b"<?xml version=\"1.0\" ?><data><nop /></data>"
                 self.cdc.write(data)
-                res = self.cdc.read(timeout=1)
+                res = self.cdc.read(timeout=2)
                 if b"<?xml" in res:
                     return {"mode": "firehose"}
                 elif len(res) > 0:
@@ -143,7 +142,8 @@ class sahara(metaclass=LogBase):
                         return {"mode": "nandprg"}
                     elif res[0] == cmd_t.SAHARA_END_TRANSFER:
                         rsp = self.ch.pkt_image_end(res)
-                        return {"mode": "sahara", "cmd": cmd_t.SAHARA_END_TRANSFER, "data": rsp}
+                        self.error(f"Device is in Sahara error state: {self.get_error_desc(rsp.image_tx_status)}")
+                        return {"mode": "error", "cmd": cmd_t.SAHARA_END_TRANSFER, "data": rsp}
                 elif res == b"":
                     data = b"\x7E\x11\x00\x12\x00\xA0\xE3\x00\x00\xC1\xE5\x01\x40\xA0\xE3\x1E\xFF\x2F\xE1\x4B\xD9\x7E"
                     self.cdc.write(data)
@@ -631,7 +631,8 @@ class sahara(metaclass=LogBase):
         return False
 
     def upload_loader(self, version):
-        if self.programmer == "":
+        if not self.programmer or self.programmer == "":
+            self.error("No loader specified or detected!")
             return ""
 
         is_xml_config = self.programmer.lower().endswith(".xml")
